@@ -137,6 +137,36 @@ Não abra o `index.html` pelo Explorer (`file://` quebra o Allure).
 
 **Navegação (4)** — Home para Forms, Home para Login, ciclo entre abas, tab bar continua acessível.
 
+## Como o Appium se comporta no iOS
+
+Esta suíte é Android. O servidor Appium e o cliente WebdriverIO são os mesmos nos dois sistemas. O que muda é o driver da sessão.
+
+No Android, `automationName` é `UiAutomator2`: o Appium instala um servidor no aparelho via ADB e fala com a árvore de acessibilidade do Android. No iOS, `automationName` é `XCUITest`. O driver instala o **WebDriverAgent** (WDA) no simulador ou no iPhone. O WDA é um servidor que roda dentro do iOS e traduz cada comando para a API XCUITest da Apple.
+
+O caminho completo exige um **Mac com Xcode**. O Xcode compila e assina o WDA, sobe o simulador e instala o app. No iPhone físico entram o certificado de desenvolvedor e o provisioning profile. Sem essa assinatura a sessão não abre. A primeira sessão no aparelho é mais lenta que os cerca de 13 s deste Android, porque inclui o build e a instalação do WDA. As seguintes ficam mais curtas quando o WDA já está no device.
+
+A partir do Windows ou do Linux o suporte é limitado, e só para aparelho real com iOS 18 ou mais novo:
+
+- simulador não existe fora do macOS
+- é obrigatório informar `appium:udid` e `appium:platformVersion`
+- o WDA não é compilado na hora. Ou ele já está instalado (`appium:usePreinstalledWDA`) ou a sessão aponta para um WDA que já está no ar (`appium:webDriverAgentUrl`)
+
+As capabilities continuam no protocolo W3C, com outros nomes:
+
+| Neste projeto (Android) | iOS |
+|---|---|
+| `platformName: Android` | `platformName: iOS` |
+| `appium:automationName: UiAutomator2` | `appium:automationName: XCUITest` |
+| `appium:appPackage` / `appActivity` | `appium:bundleId` |
+| APK | `.app` no simulador, `.ipa` no aparelho |
+| `adbExecTimeout`, porta do servidor UiAutomator2 | `appium:wdaLocalPort` e os timeouts de build e launch do WDA |
+
+O que desta suíte vale nos dois sistemas: Screen Objects, massa de dados, waits do WDIO e `mobile: terminateApp` / `mobile: activateApp`. O accessibility id (`~input-email`, `~Login`) também é a primeira estratégia nos dois drivers.
+
+O que é Android e não funciona no iOS: `id=com.wdiodemoapp:...`, `UiSelector`, `android.widget.ListView` e o atributo `checked`. No XCUITest, quando não há accessibility id, a ordem é **iOS predicate** e depois **class chain**. XPath continua por último.
+
+O alerta também muda. No Galaxy S23, `mobile: acceptAlert` não viu o AlertDialog deste app. No iOS o alerta do sistema entra na hierarquia do XCUITest, e `acceptAlert` / `dismissAlert` costumam fechar o diálogo. Em paralelo, cada sessão precisa do seu `wdaLocalPort`, do mesmo jeito que cada sessão Android precisa da sua porta do servidor UiAutomator2.
+
 ## CI
 
 [`.github/workflows/android-tests.yml`](.github/workflows/android-tests.yml) sobe um emulador API 30, força locale `en` / `US` e publica o Allure. `ALLURE_OPEN=false`. O `npm ci` dispara o `postinstall` do driver.
@@ -150,5 +180,8 @@ Não abra o `index.html` pelo Explorer (`file://` quebra o Allure).
 - [Settings do UiAutomator2](https://appium.github.io/appium-uiautomator2-driver/latest/reference/settings/)
 - [Estratégias de locator](https://appium.github.io/appium-uiautomator2-driver/latest/reference/locator-strategies/)
 - [Execute methods](https://appium.github.io/appium-uiautomator2-driver/latest/reference/execute-methods/)
+- [XCUITest driver (iOS)](https://appium.github.io/appium-xcuitest-driver/latest/)
+- [XCUITest — requisitos de sistema](https://appium.github.io/appium-xcuitest-driver/latest/getting-started/system-requirements/)
+- [XCUITest em Windows e Linux](https://appium.github.io/appium-xcuitest-driver/latest/guides/non-macos-hosts/)
 - [WebdriverIO — Appium Service](https://webdriver.io/docs/appium-service)
 - [Native Demo App](https://github.com/webdriverio/native-demo-app)
